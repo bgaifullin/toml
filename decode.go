@@ -198,12 +198,12 @@ func (md *MetaData) unify(data interface{}, rv reflect.Value) error {
 	}
 	switch k {
 	case reflect.Ptr:
-		elem := reflect.New(rv.Type().Elem())
-		err := md.unify(data, reflect.Indirect(elem))
+		elem := indirect(rv)
+		err := md.unify(data, elem)
 		if err != nil {
 			return err
 		}
-		rv.Set(elem)
+		rv.Set(elem.Addr())
 		return nil
 	case reflect.Struct:
 		return md.unifyStruct(data, rv)
@@ -292,13 +292,15 @@ func (md *MetaData) unifyMap(mapping interface{}, rv reflect.Value) error {
 		md.context = append(md.context, k)
 
 		rvkey := indirect(reflect.New(rv.Type().Key()))
+		rvkey.SetString(k)
 		rvval := reflect.Indirect(reflect.New(rv.Type().Elem()))
+		if rvv := rv.MapIndex(rvkey); rvv.IsValid() {
+			rvval.Set(rvv)
+		}
 		if err := md.unify(v, rvval); err != nil {
 			return err
 		}
 		md.context = md.context[0 : len(md.context)-1]
-
-		rvkey.SetString(k)
 		rv.SetMapIndex(rvkey, rvval)
 	}
 	return nil
